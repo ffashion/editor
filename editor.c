@@ -3,8 +3,18 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
-
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <string.h>
+#define CTRL_KEY(k) ((k) & 0x1f) 
 struct termios orig_termios;
+void die(const char* s){
+    perror(s);
+    exit(-1);
+}
+
+
 //关闭Raw模式
 void disableRawMode(){
     tcsetattr(STDIN_FILENO,TCSAFLUSH,&orig_termios);
@@ -24,7 +34,9 @@ void enableRawMode(){
     tcsetattr(STDIN_FILENO,TCSAFLUSH,&raw);
     #endif
     // Version 1.1
-    tcgetattr(STDIN_FILENO,&orig_termios);
+    //执行时  ./editor < test.c cat test.c | ./editor 都会报tcgetattr: Inappropriate ioctl for device   错误
+    if(tcgetattr(STDIN_FILENO,&orig_termios) == -1) die("tcgetattr");
+    
     //程序退出时，自动调用函数
     atexit(disableRawMode);
     
@@ -65,12 +77,10 @@ void enableRawMode(){
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 1;
     
+    if(tcsetattr(STDIN_FILENO,TCSAFLUSH,&raw) == -1) die("tcsetattr");
     
-    tcsetattr(STDIN_FILENO,TCSAFLUSH,&raw);
     
 }
-
-
 
 int main(void){
     //
@@ -95,6 +105,9 @@ int main(void){
     #endif 
     while(1){
         char c = '\0';
+        //error 和 EAGAIN来自 errno.h
+        //error != EAGAIN是为了与Cygwin保持兼容，因为Cygwin的read()超时是返回-1的,并且errno等于EAGAIN
+        if(read(STDIN_FILENO,&c,1) ==-1 && errno != EAGAIN) die("read");
         read(STDIN_FILENO,&c,1);
         if(iscntrl(c)){
             printf("%d\r\n",c);
@@ -102,8 +115,12 @@ int main(void){
         }else{
             printf("%d ('%c')\r\n",c,c);
         }
+        #if 0
         if(c == 'q') break;
-        
+        #endif 
+        #if 1
+        if(c == CTRL_KEY('q')) break; //CTRL_Q to quit
+        #endif 
     }
 
 
