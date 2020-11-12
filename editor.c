@@ -98,10 +98,14 @@ void editorProcessKeypress(){
             break;
     }
 }
-
+//清屏
+void editorRefreshScreen(){
+    write(STDOUT_FILENO,"\x1b[2J",4);
+}
 int main(void){
     enableRawMode();
     while(1){
+        editorRefreshScreen();
         editorProcessKeypress();
     }
 
