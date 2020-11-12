@@ -83,30 +83,9 @@ void enableRawMode(){
 }
 
 int main(void){
-    //
     enableRawMode();
-
-    #if 0 //version 1.0
-    char c;
-    //从标准输入读取一个字节到变量c中
-    //(1)默认的你的终端处于canonical mode(cooked mode) 有助于你使用bacspace等
-    while(read(STDIN_FILENO,&c,1) == 1 && c != 'q'){
-        if(iscntrl(c)){
-            //所有的Escape Character 以27开始，拥有3个或4个字节
-            //Page Up, Page Down, Home, and End
-            printf("%d\n",c);
-        }
-        else
-        {
-            printf("%d ('%c')\n",c,c);
-        }
-        
-    }
-    #endif 
     while(1){
         char c = '\0';
-        //error 和 EAGAIN来自 errno.h
-        //error != EAGAIN是为了与Cygwin保持兼容，因为Cygwin的read()超时是返回-1的,并且errno等于EAGAIN
         if(read(STDIN_FILENO,&c,1) ==-1 && errno != EAGAIN) die("read");
         read(STDIN_FILENO,&c,1);
         if(iscntrl(c)){
@@ -115,12 +94,7 @@ int main(void){
         }else{
             printf("%d ('%c')\r\n",c,c);
         }
-        #if 0
-        if(c == 'q') break;
-        #endif 
-        #if 1
-        if(c == CTRL_KEY('q')) break; //CTRL_Q to quit
-        #endif 
+        if(c == CTRL_KEY('q')) break;
     }
 
 
