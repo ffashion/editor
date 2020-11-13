@@ -11,6 +11,8 @@
 
 /*** data ***/
 struct  editorConfig{
+    int screenrows;
+    int screencols;
     struct termios orig_termios;
 };
 struct editorConfig E;
@@ -59,10 +61,21 @@ void editorProcessKeypress(){
             break;
     }
 }
+int getWindowSize(int *row,int *cols){
+    struct winsize ws;
+    if(ioctl(STDIN_FILENO,TIOCGWINSZ,&ws) == -1 || ws.ws_col == 0){
+        return -1;
+    }else{
+        *row = ws.ws_row;
+        *cols = ws.ws_col;
+        return 0;
+    }
+}
+
 /*** output ***/
-//写24次~
+//写正确~的次数
 void editorDrawRows(){
-    for(int y=0;y<24;y++){
+    for(int y=0;y<E.screenrows;y++){
         write(STDOUT_FILENO,"~\r\n",3);
     }
 }
@@ -76,9 +89,13 @@ void editorRefreshScreen(){
     write(STDOUT_FILENO,"\x1b[H",3);
 }
 
-
+/*** init ***/
+void initEditor(){
+    if(getWindowSize(&E.screenrows,&E.screencols) == -1) die("getWindowSize");
+}
 int main(void){
     enableRawMode();
+    initEditor();
     while(1){
         editorRefreshScreen();
         editorProcessKeypress();
