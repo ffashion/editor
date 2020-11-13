@@ -8,75 +8,32 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #define CTRL_KEY(k) ((k) & 0x1f) 
-struct termios orig_termios;
+
+/*** data ***/
+struct  editorConfig{
+    struct termios orig_termios;
+};
+struct editorConfig E;
+/*** terminal ***/
 void die(const char* s){
     write(STDOUT_FILENO,"\x1b[2J",4);
     write(STDOUT_FILENO,"\x1b[H",3); 
     perror(s);
     exit(-1);
 }
-//关闭Raw模式
 void disableRawMode(){
-    tcsetattr(STDIN_FILENO,TCSAFLUSH,&orig_termios);
+    tcsetattr(STDIN_FILENO,TCSAFLUSH,&E.orig_termios);
 }
-//开启raw mode
 void enableRawMode(){
-    #if 0
-    // Version 1.0
-    struct  termios raw;
-    tcgetattr(STDIN_FILENO,&raw);
-    
-    //Turn off echo
-    //c_cflag  == control flags  c_cflag == local flags
-    //只要需要修改这些flags 就需要开启raw mode
-    raw.c_cflag &= ~(ECHO);
-    
-    tcsetattr(STDIN_FILENO,TCSAFLUSH,&raw);
-    #endif
-    // Version 1.1
-    //执行时  ./editor < test.c cat test.c | ./editor 都会报tcgetattr: Inappropriate ioctl for device   错误
-    if(tcgetattr(STDIN_FILENO,&orig_termios) == -1) die("tcgetattr");
-    
-    //程序退出时，自动调用函数
+    if(tcgetattr(STDIN_FILENO,&E.orig_termios) == -1) die("tcgetattr");
     atexit(disableRawMode);
-    
-    //设置一个新的变量存放数据，在改变全局变量之前
-    struct termios raw = orig_termios;
-    
-    //ICANON 负责关闭canonical mode,这样我们是一个字节一个字节的输入，而不是一行行的输入
-    //这样你只要输入q就能退出了 不需要输入enter
-    // ISIG 负责关闭Ctrl-C Ctrl-Z信号
-    
-    //IEXTEN 负责关闭Ctrl-V信号  On some systems, when you type Ctrl-V, the terminal waits for you to type another character and then sends that character literally.
-    //
+    struct termios raw = E.orig_termios;
     raw.c_lflag &= ~(ECHO | ICANON | ISIG |IEXTEN);
-    
-    
-    //关闭Ctrl-S 和 Ctrl-Q信号
-    //Ctrl-S 使得程序frozen  Ctrl-Q 恢复中止
-    
-    //ICRNL = Input carriage return New line,吧Ctrl-M读作13 Enter也读作13
-    
-    // BRKINT(Break Condition) When BRKINT is turned on, a break condition will cause a SIGINT signal to be sent to the program, like pressing Ctrl-C.
-    //  ISTRIP causes the 8th bit of each input byte to be stripped, meaning it will set it to 0. This is probably already turned off
-    // INPCK enables parity checking, which doesn’t seem to apply to modern terminal emulators.
     raw.c_iflag &= ~(IXON | ICRNL | INPCK| ISTRIP | BRKINT);
-    
-    //OPOST=OutPut post-processing of output 这样就指挥到新行 不会到行的开始位置，通常output flag只会设置这一项
-    //OPOST 会关闭输入处理，不做处理
     raw.c_oflag &= ~(OPOST);
-    
-    // It sets the character size (CS) to 8 bits per byte
     raw.c_cflag |= (CS8);
-    
-    //c_cc = C control characters
-    //VMIN The VMIN value sets the minimum number of bytes of input needed before read() can return. 
-    //We set it to 0 so that read() returns as soon as there is any input to be read
-    
-    //VTIME  The VTIME value sets the maximum amount of time to wait before read() returns
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 1;
-    
     if(tcsetattr(STDIN_FILENO,TCSAFLUSH,&raw) == -1) die("tcsetattr");
     
     
