@@ -10,6 +10,8 @@
 #define CTRL_KEY(k) ((k) & 0x1f) 
 struct termios orig_termios;
 void die(const char* s){
+    write(STDOUT_FILENO,"\x1b[2J",4);
+    write(STDOUT_FILENO,"\x1b[H",3); 
     perror(s);
     exit(-1);
 }
@@ -87,13 +89,17 @@ char editorReadKey(){
     char c;
     while ((nread = read(STDIN_FILENO,&c,1)) != 1){
         if(nread == -1 && errno != EAGAIN) die("read");
+       
     }
+    printf("%d((%c))\n",c,c);
     return c;
 }
 void editorProcessKeypress(){
     char c = editorReadKey();
     switch (c){
         case CTRL_KEY('q'):
+            write(STDOUT_FILENO,"\x1b[2J",4);
+            write(STDOUT_FILENO,"\x1b[H",3); 
             exit(0);
             break;
     }
