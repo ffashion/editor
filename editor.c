@@ -101,6 +101,8 @@ void editorProcessKeypress(){
 //清屏
 void editorRefreshScreen(){
     write(STDOUT_FILENO,"\x1b[2J",4);
+    //重新定位光标在左上角,<ESC>[20,20H 将光标定位在20，20处，默认的位置是1，1，所以位于左上角
+    write(STDOUT_FILENO,"\x1b[H",3); 
 }
 int main(void){
     enableRawMode();
