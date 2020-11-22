@@ -66,7 +66,7 @@ int getCursorPosition(int *rows,int *cols){
     unsigned int i = 0;
     
     //读入缓冲区 一直读取 知道读取到R字符
-    if(write(STDIN_FILENO,"\x1b6[",4) != 4) return -1;
+    if(write(STDIN_FILENO,"\x1b[6n",4) != 4) return -1;
     while (i<sizeof(buf) -1){
         if(read(STDIN_FILENO,&buf[i],1) !=1 ) break;
         if(buf[i] == 'R') break;
@@ -106,25 +106,49 @@ int getWindowSize(int *rows,int *cols){
         return 0;
     }
 }
+/***append buffer ***/
+//write如果一次只写入一个字节那么终端可能会闪烁
+//所以我门定义了此结构体,使得write是一次完成的
+struct abuf
+{
+    char *b;
+    int len;
+};
+//定义一个空的常量buffer
+#define ABUF_INIT {NULL,0}
+//把字符串s添加到ab里
+void abAppend(struct abuf *ab,const char *s,int len){
+    char *new = realloc(ab->b,ab->len +len);
+
+    if(new == NULL)return;
+    memcpy(&new[ab->len],s,len);
+    ab->b = new;
+    ab->len += len;
+}
+//释放空间
+void abFree(struct abuf *ab){
+    free(ab->b);
+}
+
 /*** output ***/
-void editorDrawRows(){
+void editorDrawRows(struct abuf *ab){
     for(int y=0;y<E.screenrows;y++){
-        write(STDOUT_FILENO,"~",2);
+        abAppend(ab,"~",1);
         if(y < E.screenrows -1){
-            write(STDOUT_FILENO,"\r\n",2);
+            abAppend(ab,"\r\n",2);
         }
     }
 }
 void editorRefreshScreen(){
-    write(STDOUT_FILENO,"\x1b[2J",4);
+    struct abuf ab = ABUF_INIT;
+    abAppend(&ab, "\x1b[2J", 4);
+    abAppend(&ab, "\x1b[H", 3);
     
-    //定位光标在左上角,比如<ESC>[20,20H 将光标定位在20，20处，默认的位置是1，1，所以位于左上角
-    write(STDOUT_FILENO,"\x1b[H",3); 
-    
-    //写~
-    editorDrawRows();
-    //重新定位光标在11处
-    write(STDOUT_FILENO,"\x1b[H",3);
+    editorDrawRows(&ab);
+    abAppend(&ab,"\x1b[H",3);
+
+    write(STDIN_FILENO,ab.b,ab.len);
+    abFree(&ab);
 }
 
 /*** init ***/
