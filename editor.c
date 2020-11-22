@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <string.h>
+#define zr_VERSION "0.0.1"
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 /*** data ***/
@@ -133,7 +134,27 @@ void abFree(struct abuf *ab){
 /*** output ***/
 void editorDrawRows(struct abuf *ab){
     for(int y=0;y<E.screenrows;y++){
-        abAppend(ab,"~",1);
+        if( y== E.screenrows / 3){
+            char welcome[80];
+            int welcomelen = snprintf(welcome,sizeof(welcome),
+            "zr editor --version %s",zr_VERSION);
+            if(welcomelen > E.screencols) welcomelen = E.screencols;
+            
+            //将信息显示到中间
+            int padding = (E.screencols - welcomelen) / 2;
+            if (padding) {
+                abAppend(ab, "~", 1);
+                padding--;
+            }
+            while (padding--) abAppend(ab, " ", 1);
+            
+            abAppend(ab,welcome,welcomelen);
+        
+        }else{
+            abAppend(ab,"~",1);
+        }
+        
+        
         
         //K命令清除当前行的一部分  0为默认,清除光标右边的部分，2清除整行, 1清除光标左边部分
         abAppend(ab,"\x1b[K",3);
