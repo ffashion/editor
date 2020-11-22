@@ -134,6 +134,9 @@ void abFree(struct abuf *ab){
 void editorDrawRows(struct abuf *ab){
     for(int y=0;y<E.screenrows;y++){
         abAppend(ab,"~",1);
+        
+        //K命令清除当前行的一部分  0为默认,清除光标右边的部分，2清除整行, 1清除光标左边部分
+        abAppend(ab,"\x1b[K",3);
         if(y < E.screenrows -1){
             abAppend(ab,"\r\n",2);
         }
@@ -144,7 +147,7 @@ void editorRefreshScreen(){
     
     //l命令
     abAppend(&ab,"\x1b[?25l",6);
-    abAppend(&ab, "\x1b[2J", 4);
+
     abAppend(&ab, "\x1b[H", 3);
     
     editorDrawRows(&ab);
