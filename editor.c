@@ -9,19 +9,24 @@
 #include <string.h>
 #define zr_VERSION "0.0.1"
 #define CTRL_KEY(k) ((k) & 0x1f)
-enum editorKey{
-    ARROW_LEFT = 'h',
-    ARROW_RIGHT = 'l',
-    ARROW_UP = 'k',
-    ARROW_DOWN = 'j'
-};
-//赋予上下左右一个比较大的值，以至于他们不会和传统按键冲突，但是只后需要将char 改为int
 // enum editorKey{
-//     ARROW_LEFT = 1000,
-//     ARROW_RIGHT,
-//     ARROW_UP ,
-//     ARROW_DOWN
+//     ARROW_LEFT = 'h',
+//     ARROW_RIGHT = 'l',
+//     ARROW_UP = 'k',
+//     ARROW_DOWN = 'j',
+//     PAGE_UP = '[',
+//     PAGE_DOWN = ']'
 // };
+//赋予上下左右一个比较大的值，以至于他们不会和传统按键冲突，但是只后需要将char 改为int
+//这里的1000是无意义的
+enum editorKey{
+    ARROW_LEFT = 1000,
+    ARROW_RIGHT,
+    ARROW_UP ,
+    ARROW_DOWN,
+    PAGE_UP,
+    PAGE_DOWN
+};
 /*** data ***/
 struct  editorConfig{
     //cx，cy用于记录光标位置
@@ -69,13 +74,24 @@ int editorReadKey(){
         //继续读一个字节，存入seq[0],如果没有读到，则返回'\x1b'
         if(read(STDIN_FILENO,&seq[0],1) != 1) return '\x1b';
         if(read(STDIN_FILENO,&seq[1],1) != 1) return '\x1b';
-
+        //<esc>[5~ 为Page up按钮 <esc>[6~为Page down 按钮
+        //注意这里全写死了，只能使用
         if(seq[0] == '['){
-            switch(seq[1]){
-                case 'A': return ARROW_UP;
-                case 'B': return ARROW_DOWN;
-                case 'C': return ARROW_RIGHT;
-                case 'D': return ARROW_LEFT;
+            if(seq[1] >='0' && seq[1] <='9'){
+                if(read(STDIN_FILENO,&seq[2],1) != 1) return '\x1b';
+                if(seq[2] == '~'){
+                    switch(seq[1]){
+                        case '5': return PAGE_UP;
+                        case '6': return PAGE_DOWN;
+                    }
+                }
+            }else{
+                switch(seq[1]){
+                    case 'A': return ARROW_UP;
+                    case 'B': return ARROW_DOWN;
+                    case 'C': return ARROW_RIGHT;
+                    case 'D': return ARROW_LEFT;
+                }
             }
         }
         return '\x1b';
@@ -201,7 +217,7 @@ void editorRefreshScreen(){
     //初始化光标位置
     char buf[32];
     //格式化字符串"\x1b[%d;%dH"，并将格式化后的字符串写入到buf中
-    //+1 的目的是终端使用的索引是以1开始的
+    //+1 的目的是终端使用的索引是以1开始的，而我们使用的索引是从0开始的
     snprintf(buf,sizeof(buf),"\x1b[%d;%dH",E.cy+1,E.cx+1);
     abAppend(&ab,buf,strlen(buf));
     
@@ -231,10 +247,20 @@ void editorProcessKeypress(){
             write(STDOUT_FILENO,"\x1b[H",3); 
             exit(0);
             break;
-        case 'h':
-        case 'l':
-        case 'k':
-        case 'j':
+        case PAGE_UP:
+        case PAGE_DOWN:
+            {
+                int times = E.screenrows;
+                while(times--){
+                    editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+                }
+            }
+            break;
+        
+        case ARROW_UP:
+        case ARROW_DOWN:
+        case ARROW_LEFT:
+        case ARROW_RIGHT:
             editorMoveCursor(c);
             break;
     
