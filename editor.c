@@ -24,6 +24,8 @@ enum editorKey{
     ARROW_RIGHT,
     ARROW_UP ,
     ARROW_DOWN,
+    HOME_KEY,
+    END_KEY,
     PAGE_UP,
     PAGE_DOWN
 };
@@ -81,8 +83,13 @@ int editorReadKey(){
                 if(read(STDIN_FILENO,&seq[2],1) != 1) return '\x1b';
                 if(seq[2] == '~'){
                     switch(seq[1]){
+                        //HOME可以是(<esc>[1~, <esc>[7~, <esc>[H, or <esc>OH) , END可以是(<esc>[4~, <esc>[8~, <esc>[F, or <esc>OF) 这主要取决于OS或者你的终端模拟器
+                        case '1': return HOME_KEY;
+                        case '4': return END_KEY;
                         case '5': return PAGE_UP;
                         case '6': return PAGE_DOWN;
+                        case '7': return HOME_KEY;
+                        case '8': return END_KEY;
                     }
                 }
             }else{
@@ -91,9 +98,17 @@ int editorReadKey(){
                     case 'B': return ARROW_DOWN;
                     case 'C': return ARROW_RIGHT;
                     case 'D': return ARROW_LEFT;
+                    case 'H': return HOME_KEY;
+                    case 'F': return END_KEY;
                 }
             }
+        }else if (seq[0] == '0'){
+            switch(seq[1]){
+                case 'H': return HOME_KEY;
+                case 'F': return END_KEY;
+            } 
         }
+        
         return '\x1b';
     }else{
         return c;
@@ -263,7 +278,13 @@ void editorProcessKeypress(){
         case ARROW_RIGHT:
             editorMoveCursor(c);
             break;
-    
+        //目前先把HOME和END操作设置为将光标移到左边和右边
+        case HOME_KEY:
+            E.cx = 0;
+            break;
+        case END_KEY:
+            E.cx = E.screencols -1;
+            break;
     }
 }
 /*** init ***/
