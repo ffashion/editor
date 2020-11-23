@@ -9,19 +9,19 @@
 #include <string.h>
 #define zr_VERSION "0.0.1"
 #define CTRL_KEY(k) ((k) & 0x1f)
-// enum editorKey{
-//     ARROW_LEFT = 'h',
-//     ARROW_RIGHT = 'l',
-//     ARROW_UP = 'k',
-//     ARROW_DOWN = 'j'
-// };
-//赋予上下左右一个比较大的值，以至于他们不会和传统按键冲突，但是只后需要将char 改为int
 enum editorKey{
-    ARROW_LEFT = 1000,
-    ARROW_RIGHT,
-    ARROW_UP ,
-    ARROW_DOWN
+    ARROW_LEFT = 'h',
+    ARROW_RIGHT = 'l',
+    ARROW_UP = 'k',
+    ARROW_DOWN = 'j'
 };
+//赋予上下左右一个比较大的值，以至于他们不会和传统按键冲突，但是只后需要将char 改为int
+// enum editorKey{
+//     ARROW_LEFT = 1000,
+//     ARROW_RIGHT,
+//     ARROW_UP ,
+//     ARROW_DOWN
+// };
 /*** data ***/
 struct  editorConfig{
     //cx，cy用于记录光标位置
@@ -214,13 +214,13 @@ void editorRefreshScreen(){
 void editorMoveCursor(int key){
     switch (key){
         case ARROW_LEFT :
-            E.cx--;break;
+            if(E.cx != 0){E.cx--;}break;
         case ARROW_RIGHT :
-            E.cx++;break;
+            if(E.cx != E.screencols -1){E.cx++;}break;
         case ARROW_UP :
-            E.cy--;break;
+            if(E.cy != 0){E.cy--;}break;
         case ARROW_DOWN :
-            E.cy++;break;
+            if(E.cy != E.screenrows -1){E.cy++;}break;
     }
 }
 void editorProcessKeypress(){
