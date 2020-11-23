@@ -24,6 +24,7 @@ enum editorKey{
     ARROW_RIGHT,
     ARROW_UP ,
     ARROW_DOWN,
+    DEL_KEY,
     HOME_KEY,
     END_KEY,
     PAGE_UP,
@@ -85,6 +86,7 @@ int editorReadKey(){
                     switch(seq[1]){
                         //HOME可以是(<esc>[1~, <esc>[7~, <esc>[H, or <esc>OH) , END可以是(<esc>[4~, <esc>[8~, <esc>[F, or <esc>OF) 这主要取决于OS或者你的终端模拟器
                         case '1': return HOME_KEY;
+                        case '3': return DEL_KEY;
                         case '4': return END_KEY;
                         case '5': return PAGE_UP;
                         case '6': return PAGE_DOWN;
