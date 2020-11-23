@@ -9,7 +9,19 @@
 #include <string.h>
 #define zr_VERSION "0.0.1"
 #define CTRL_KEY(k) ((k) & 0x1f)
-
+// enum editorKey{
+//     ARROW_LEFT = 'h',
+//     ARROW_RIGHT = 'l',
+//     ARROW_UP = 'k',
+//     ARROW_DOWN = 'j'
+// };
+//赋予上下左右一个比较大的值，以至于他们不会和传统按键冲突，但是只后需要将char 改为int
+enum editorKey{
+    ARROW_LEFT = 1000,
+    ARROW_RIGHT,
+    ARROW_UP ,
+    ARROW_DOWN
+};
 /*** data ***/
 struct  editorConfig{
     //cx，cy用于记录光标位置
@@ -43,14 +55,36 @@ void enableRawMode(){
     
     
 }
-char editorReadKey(){
+int editorReadKey(){
     int nread;
     char c;
     while ((nread = read(STDIN_FILENO,&c,1)) != 1){
         if(nread == -1 && errno != EAGAIN) die("read");
        
     }
-    return c;
+    // 使用Arrow按键 上下移动光标
+    if( c == '\x1b'){
+        //这里只需要2个字节，定义3个字节 是为了以后使用
+        char seq[3];
+        //继续读一个字节，存入seq[0],如果没有读到，则返回'\x1b'
+        if(read(STDIN_FILENO,&seq[0],1) != 1) return '\x1b';
+        if(read(STDIN_FILENO,&seq[1],1) != 1) return '\x1b';
+
+        if(seq[0] == '['){
+            switch(seq[1]){
+                case 'A': return ARROW_UP;
+                case 'B': return ARROW_DOWN;
+                case 'C': return ARROW_RIGHT;
+                case 'D': return ARROW_LEFT;
+            }
+        }
+        return '\x1b';
+    }else{
+        return c;
+    }
+    
+
+    
 }
 
 //获取光标位置
@@ -177,20 +211,20 @@ void editorRefreshScreen(){
     abFree(&ab);
 }
 /*** input ***/
-void editorMoveCursor(char key){
+void editorMoveCursor(int key){
     switch (key){
-        case 'h' :
+        case ARROW_LEFT :
             E.cx--;break;
-        case 'l' :
+        case ARROW_RIGHT :
             E.cx++;break;
-        case 'k' :
+        case ARROW_UP :
             E.cy--;break;
-        case 'j' :
+        case ARROW_DOWN :
             E.cy++;break;
     }
 }
 void editorProcessKeypress(){
-    char c = editorReadKey();
+    int c = editorReadKey();
     switch (c){
         case CTRL_KEY('q'):
             write(STDOUT_FILENO,"\x1b[2J",4);
