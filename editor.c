@@ -12,6 +12,8 @@
 
 /*** data ***/
 struct  editorConfig{
+    //cx，cy用于记录光标位置
+    int cx,cy;
     int screenrows;
     int screencols;
     struct termios orig_termios;
@@ -48,19 +50,9 @@ char editorReadKey(){
         if(nread == -1 && errno != EAGAIN) die("read");
        
     }
-    printf("%d((%c))\n",c,c);
     return c;
 }
-void editorProcessKeypress(){
-    char c = editorReadKey();
-    switch (c){
-        case CTRL_KEY('q'):
-            write(STDOUT_FILENO,"\x1b[2J",4);
-            write(STDOUT_FILENO,"\x1b[H",3); 
-            exit(0);
-            break;
-    }
-}
+
 //获取光标位置
 int getCursorPosition(int *rows,int *cols){ 
     char buf[32];
@@ -91,7 +83,6 @@ int getCursorPosition(int *rows,int *cols){
     return -1;
     
 }
-
 int getWindowSize(int *rows,int *cols){
     struct winsize ws;
     if(ioctl(STDIN_FILENO,TIOCGWINSZ,&ws) == -1 || ws.ws_col == 0){
@@ -173,15 +164,53 @@ void editorRefreshScreen(){
     
     editorDrawRows(&ab);
     //h命令
-    abAppend(&ab,"\x1b[H",3);
+    //初始化光标位置
+    char buf[32];
+    //格式化字符串"\x1b[%d;%dH"，并将格式化后的字符串写入到buf中
+    //+1 的目的是终端使用的索引是以1开始的
+    snprintf(buf,sizeof(buf),"\x1b[%d;%dH",E.cy+1,E.cx+1);
+    abAppend(&ab,buf,strlen(buf));
+    
     abAppend(&ab, "\x1b[?25h", 6);
 
     write(STDIN_FILENO,ab.b,ab.len);
     abFree(&ab);
 }
-
+/*** input ***/
+void editorMoveCursor(char key){
+    switch (key){
+        case 'h' :
+            E.cx--;break;
+        case 'l' :
+            E.cx++;break;
+        case 'k' :
+            E.cy--;break;
+        case 'j' :
+            E.cy++;break;
+    }
+}
+void editorProcessKeypress(){
+    char c = editorReadKey();
+    switch (c){
+        case CTRL_KEY('q'):
+            write(STDOUT_FILENO,"\x1b[2J",4);
+            write(STDOUT_FILENO,"\x1b[H",3); 
+            exit(0);
+            break;
+        case 'h':
+        case 'l':
+        case 'k':
+        case 'j':
+            editorMoveCursor(c);
+            break;
+    
+    }
+}
 /*** init ***/
 void initEditor(){
+    //设置初始化的光标位置
+    E.cx = 0;
+    E.cy = 0;
     //获取窗口大小
     if(getWindowSize(&E.screenrows,&E.screencols) == -1) die("getWindowSize");
 }
