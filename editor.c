@@ -9,6 +9,10 @@
 #include <string.h>
 #define zr_VERSION "0.0.1"
 #define CTRL_KEY(k) ((k) & 0x1f)
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+#define _GNU_SOURCE
+#define __USE_GNU
 // enum editorKey{
 //     ARROW_LEFT = 'h',
 //     ARROW_RIGHT = 'l',
@@ -31,14 +35,25 @@ enum editorKey{
     PAGE_DOWN
 };
 /*** data ***/
+//存储文本的一行
+typedef struct erow{
+    int size;
+    char *chars;
+} erow;
+
 struct  editorConfig{
     //cx，cy用于记录光标位置
     int cx,cy;
     int screenrows;
     int screencols;
+    //numrows 存储一共使用了多少行
+    int numrows;
+    erow row;
     struct termios orig_termios;
 };
 struct editorConfig E;
+
+
 /*** terminal ***/
 void die(const char* s){
     write(STDOUT_FILENO,"\x1b[2J",4);
@@ -165,6 +180,42 @@ int getWindowSize(int *rows,int *cols){
         return 0;
     }
 }
+
+/*** file i/o ***/
+void editorOpen(char *filename){
+    FILE *fp = fopen(filename,"r");
+    if(!fp) die("fopen");
+    
+    //line 指向要分配字符串的内存
+    char *line = NULL;
+    //line capacity  linecap 存储分配了多少内存
+    size_t linecap = 0;
+    ssize_t linelen;
+    linelen = getline(&line,&linecap,fp);
+    if(linelen != -1){
+        while(linelen > 0 && (line[linelen -1] == '\n' || line[linelen -1] == '\r'))
+        linelen--;
+        E.row.size = linelen;
+        E.row.chars = malloc(linelen +1);
+        memcpy(E.row.chars,line,linelen);
+        E.row.chars[linelen] = '\0';
+        E.numrows = 1;
+    }
+    free(line);
+    free(fp);
+    
+    
+    
+    // char *line = "HelloWorld";
+    // ssize_t linelen =13;
+
+    // E.row.size = linelen;
+    // E.row.chars = malloc(linelen +1);
+    // memcpy(E.row.chars,line,linelen);
+    // E.row.chars[linelen] = '\0';
+    // E.numrows = 1;
+}
+
 /***append buffer ***/
 //write如果一次只写入一个字节那么终端可能会闪烁
 //所以我门定义了此结构体,使得write是一次完成的
@@ -191,8 +242,11 @@ void abFree(struct abuf *ab){
 
 /*** output ***/
 void editorDrawRows(struct abuf *ab){
+    //y为行数
     for(int y=0;y<E.screenrows;y++){
-        if( y== E.screenrows / 3){
+        if(y >= E.numrows){
+            //使得读取文件之后 不显示欢迎界面
+            if(E.numrows ==0 && y == E.screenrows / 3){
             char welcome[80];
             int welcomelen = snprintf(welcome,sizeof(welcome),
             "zr editor --version %s",zr_VERSION);
@@ -204,16 +258,17 @@ void editorDrawRows(struct abuf *ab){
                 abAppend(ab, "~", 1);
                 padding--;
             }
-            while (padding--) abAppend(ab, " ", 1);
-            
-            abAppend(ab,welcome,welcomelen);
+                while (padding--) abAppend(ab, " ", 1);
+                abAppend(ab,welcome,welcomelen);
         
+            }else{
+                abAppend(ab,"~",1);
+            }
         }else{
-            abAppend(ab,"~",1);
+            int len = E.row.size;
+            if(len > E.screencols) len = E.screencols;
+            abAppend(ab,E.row.chars,len);
         }
-        
-        
-        
         //K命令清除当前行的一部分  0为默认,清除光标右边的部分，2清除整行, 1清除光标左边部分
         abAppend(ab,"\x1b[K",3);
         if(y < E.screenrows -1){
@@ -297,9 +352,12 @@ void initEditor(){
     //获取窗口大小
     if(getWindowSize(&E.screenrows,&E.screencols) == -1) die("getWindowSize");
 }
-int main(void){
+int main(int argc,char *argv[]){
     enableRawMode();
     initEditor();
+    if(argc >=2){
+        editorOpen(argv[1]);
+    }
     while(1){
         editorRefreshScreen();
         editorProcessKeypress();
