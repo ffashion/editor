@@ -1,3 +1,7 @@
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+#define _GNU_SOURCE
+
 #include <unistd.h>
 #include <termio.h>
 #include <stdlib.h>
@@ -9,10 +13,7 @@
 #include <string.h>
 #define zr_VERSION "0.0.1"
 #define CTRL_KEY(k) ((k) & 0x1f)
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
-#define _GNU_SOURCE
-#define __USE_GNU
+
 // enum editorKey{
 //     ARROW_LEFT = 'h',
 //     ARROW_RIGHT = 'l',
@@ -48,7 +49,8 @@ struct  editorConfig{
     int screencols;
     //numrows 存储一共使用了多少行
     int numrows;
-    erow row;
+    //存储多行
+    erow *row;
     struct termios orig_termios;
 };
 struct editorConfig E;
@@ -181,6 +183,17 @@ int getWindowSize(int *rows,int *cols){
     }
 }
 
+/***  Row Operations***/
+void editorAppendRow(char *s, size_t len){
+    E.row = realloc(E.row,sizeof(erow) * (E.numrows +1) );
+    //使用at索引我们想初始化的行
+    int at = E.numrows;
+    E.row[at].size = len;
+    E.row[at].chars = malloc(len +1);
+    memcpy(E.row[at].chars,s,len);
+    E.row[at].chars[len] = '\0';
+    E.numrows++;
+}
 /*** file i/o ***/
 void editorOpen(char *filename){
     FILE *fp = fopen(filename,"r");
@@ -191,15 +204,10 @@ void editorOpen(char *filename){
     //line capacity  linecap 存储分配了多少内存
     size_t linecap = 0;
     ssize_t linelen;
-    linelen = getline(&line,&linecap,fp);
-    if(linelen != -1){
+    while((linelen = getline(&line,&linecap,fp)) != -1){
         while(linelen > 0 && (line[linelen -1] == '\n' || line[linelen -1] == '\r'))
         linelen--;
-        E.row.size = linelen;
-        E.row.chars = malloc(linelen +1);
-        memcpy(E.row.chars,line,linelen);
-        E.row.chars[linelen] = '\0';
-        E.numrows = 1;
+        editorAppendRow(line,linelen);
     }
     free(line);
     free(fp);
@@ -265,9 +273,9 @@ void editorDrawRows(struct abuf *ab){
                 abAppend(ab,"~",1);
             }
         }else{
-            int len = E.row.size;
+            int len = E.row[y].size;
             if(len > E.screencols) len = E.screencols;
-            abAppend(ab,E.row.chars,len);
+            abAppend(ab,E.row[y].chars,len);
         }
         //K命令清除当前行的一部分  0为默认,清除光标右边的部分，2清除整行, 1清除光标左边部分
         abAppend(ab,"\x1b[K",3);
@@ -349,6 +357,8 @@ void initEditor(){
     //设置初始化的光标位置
     E.cx = 0;
     E.cy = 0;
+    E.numrows = 0;
+    E.row = NULL;
     //获取窗口大小
     if(getWindowSize(&E.screenrows,&E.screencols) == -1) die("getWindowSize");
 }
